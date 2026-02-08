@@ -45,16 +45,27 @@ A multi-agent system that takes a startup idea, validates the input, performs de
 
 ## 📸 Screenshots
 
-> **📷 Screenshot placeholders** — Replace with actual screenshots after deployment
+![Screenshot 1](docs/screenshots/Screenshot%202026-02-08%20151209.png)
 
-| Screenshot | Description |
-|------------|-------------|
-| `[SCREENSHOT: Main Interface]` | Streamlit UI with idea input form and "How it Works" section |
-| `[SCREENSHOT: Analysis Progress]` | Status indicators showing 🛡️ Validating → 🔍 Researching → ⚔️ Debating |
-| `[SCREENSHOT: Debate Transcript]` | Expanded view of Bull 🐂 vs Bear 🐻 debate with Synthesizer ⚖️ conclusion |
-| `[SCREENSHOT: Investment Memo]` | Sample successful report with market analysis and recommendation |
-| `[SCREENSHOT: Market Reality Report]` | Sample rejection report explaining market challenges |
-| `[SCREENSHOT: Thought Trace]` | Execution timeline with node durations and debate transcript |
+![Screenshot 2](docs/screenshots/Screenshot%202026-02-08%20151241.png)
+
+![Screenshot 3](docs/screenshots/Screenshot%202026-02-08%20151254.png)
+
+![Screenshot 4](docs/screenshots/Screenshot%202026-02-08%20151306.png)
+
+![Screenshot 5](docs/screenshots/Screenshot%202026-02-08%20151315.png)
+
+![Screenshot 6](docs/screenshots/Screenshot%202026-02-08%20151413.png)
+
+![Screenshot 7](docs/screenshots/Screenshot%202026-02-08%20151423.png)
+
+![Screenshot 8](docs/screenshots/Screenshot%202026-02-08%20151435.png)
+
+![Screenshot 9](docs/screenshots/Screenshot%202026-02-08%20151450.png)
+
+![Screenshot 10](docs/screenshots/Screenshot%202026-02-08%20151504.png)
+
+![Screenshot 11](docs/screenshots/Screenshot%202026-02-08%20151529.png)
 
 ## 🛠️ Tech Stack
 
