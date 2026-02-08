@@ -184,6 +184,8 @@ def main():
                 st.session_state.selected_job_id = result["job_id"]
                 st.session_state.show_results = True
                 st.rerun()
+            elif result["status"] == "invalid_input":
+                st.warning(f"⚠️ Input not suitable for analysis: {result.get('error', 'Please enter a valid startup idea')}")
             else:
                 st.error(f"❌ Analysis failed: {result.get('error', 'Unknown error')}")
         
@@ -198,37 +200,37 @@ def main():
         
         with col1:
             st.markdown("""
-            **1. Market Research** 🔍
+            **1. Input Validation** 🛡️
             
-            Searches for TAM, growth trends, and target demographics.
+            Validates your idea is suitable for market analysis.
             """)
         
         with col2:
             st.markdown("""
-            **2. Competitor Analysis** 📊
+            **2. Market Research** 🔍📊
             
-            Scrapes and analyzes top competitors' features and pricing.
+            Searches for TAM, growth, and analyzes competitors.
             """)
         
         with col3:
             st.markdown("""
-            **3. Critical Evaluation** 😈
+            **3. Bull vs Bear Debate** ⚔️
             
-            Devil's Advocate scores viability and suggests pivots.
+            Multi-agent debate evaluates and refines your idea.
             """)
         
         with col4:
             st.markdown("""
             **4. Final Report** ✍️
             
-            Investment Memo or Market Reality Report with full findings.
+            Investment Memo with balanced analysis.
             """)
         
         st.markdown("---")
         st.markdown("""
-        **🔄 Autonomous Pivoting:** If your idea scores ≤5/10, the system automatically 
-        suggests and researches pivot opportunities (up to 3 attempts) before generating 
-        a final report.
+        **⚔️ Debate-Driven Analysis:** Three AI agents (Bull, Bear, Synthesizer) debate your 
+        idea's viability, producing balanced analysis and potentially suggesting a refined 
+        pivot based on market realities.
         """)
 
 

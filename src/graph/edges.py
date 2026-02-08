@@ -7,11 +7,60 @@ from src.config import get_settings
 from src.graph.state import AgentState
 
 
+def should_proceed_after_validation(
+    state: AgentState,
+) -> Literal["valid", "invalid"]:
+    """
+    Determine if the input is valid after the input_validator node.
+    
+    Returns:
+    - "valid": Input is a valid startup idea → proceed to research
+    - "invalid": Input is gibberish/off-topic → end with rejection message
+    """
+    validation = state.get("input_validation") or {}
+    is_valid = validation.get("is_valid", True)
+    
+    if is_valid:
+        return "valid"
+    return "invalid"
+
+
+def should_proceed_after_debate(
+    state: AgentState,
+) -> Literal["write_success", "write_failure"]:
+    """
+    Determine the next step after the debate panel (debate mode).
+    
+    In debate mode, there's no pivot loop - the debate itself produces
+    either an approved idea (possibly refined) or a rejection.
+    
+    Returns:
+    - "write_success": Score > threshold → proceed to write investment memo
+    - "write_failure": Score <= threshold → write market reality report
+    """
+    settings = get_settings()
+    
+    # Check if there was an error
+    if state.get("status") == "failed":
+        return "write_failure"
+    
+    # Try debate_result first (new debate mode), fall back to devils_advocate_feedback
+    debate_result = state.get("debate_result") or {}
+    feedback = state.get("devils_advocate_feedback") or {}
+    
+    score = debate_result.get("score") or feedback.get("score", 0)
+    
+    if score > settings.pass_threshold:
+        return "write_success"
+    
+    return "write_failure"
+
+
 def should_pivot_or_proceed(
     state: AgentState,
 ) -> Literal["pivot", "write_success", "write_failure"]:
     """
-    Determine the next step after Devil's Advocate evaluation.
+    Determine the next step after Devil's Advocate evaluation (legacy mode).
     
     Returns:
     - "pivot": Score <= threshold AND pivots remaining → loop back to research
@@ -42,7 +91,7 @@ def should_pivot_or_proceed(
 
 def apply_pivot(state: AgentState) -> dict:
     """
-    Apply a pivot to the current idea.
+    Apply a pivot to the current idea (legacy mode).
     
     This function:
     1. Extracts the suggested pivot from Devil's Advocate feedback
@@ -82,4 +131,24 @@ def apply_pivot(state: AgentState) -> dict:
         "market_research": None,
         "competitor_analysis": None,
         "devils_advocate_feedback": None,
+    }
+
+
+def handle_invalid_input(state: AgentState) -> dict:
+    """
+    Handle invalid input by setting error state with rejection message.
+    """
+    validation = state.get("input_validation") or {}
+    rejection_reason = validation.get("rejection_reason", "Invalid input")
+    suggested_reframe = validation.get("suggested_reframe")
+    
+    error_message = rejection_reason
+    if suggested_reframe:
+        error_message += f"\n\nSuggestion: {suggested_reframe}"
+    
+    return {
+        "status": "failed",
+        "error": error_message,
+        "final_report": f"# ⚠️ Invalid Input\n\n{error_message}",
+        "report_type": None,
     }

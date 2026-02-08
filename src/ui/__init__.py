@@ -100,7 +100,7 @@ async def get_job_details(job_id: str) -> dict[str, Any] | None:
 
 
 def render_thought_trace(job_details: dict[str, Any]) -> None:
-    """Render the thought trace and pivot history expander"""
+    """Render the thought trace, debate transcript, and pivot history expander"""
     
     with st.expander("🧠 Thought Trace & Pivot History", expanded=False):
         steps = job_details.get("steps", [])
@@ -121,11 +121,14 @@ def render_thought_trace(job_details: dict[str, Any]) -> None:
             
             # Icon based on node
             icons = {
+                "input_validator": "🛡️",
                 "market_researcher": "🔍",
                 "competitor_analyst": "📊",
+                "debate_panel": "⚔️",
                 "devils_advocate": "😈",
                 "apply_pivot": "🔄",
                 "writer": "✍️",
+                "handle_invalid": "⚠️",
             }
             icon = icons.get(node_name, "⚙️")
             
@@ -134,6 +137,9 @@ def render_thought_trace(job_details: dict[str, Any]) -> None:
                 st.error(f"{icon} **{node_name}** (Pivot #{pivot_num}) - ❌ Failed: {error}")
             else:
                 st.success(f"{icon} **{node_name}** (Pivot #{pivot_num}) - ✅ {duration}ms")
+        
+        # Check for debate result and show transcript
+        _render_debate_transcript(job_details)
         
         # Pivot history
         if pivots:
@@ -150,15 +156,79 @@ def render_thought_trace(job_details: dict[str, Any]) -> None:
 """)
 
 
+def _render_debate_transcript(job_details: dict[str, Any]) -> None:
+    """Render the debate transcript if present in the job's output state"""
+    # Look for debate_result in the steps' output states
+    steps = job_details.get("steps", [])
+    
+    debate_transcript = None
+    debate_result = None
+    
+    for step in steps:
+        if step.get("node_name") == "debate_panel":
+            # The output_state might contain debate_result
+            output = step.get("output_state") or {}
+            if "debate_result" in output:
+                debate_result = output["debate_result"]
+                debate_transcript = debate_result.get("debate_transcript", [])
+                break
+    
+    if not debate_transcript and not debate_result:
+        return
+    
+    st.markdown("### ⚔️ Debate Transcript")
+    
+    # Show summary cards
+    if debate_result:
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**🐂 Bull Case (Investment Thesis)**")
+            st.info(debate_result.get("bull_case", "N/A"))
+        
+        with col2:
+            st.markdown("**🐻 Bear Case (Risk Analysis)**")
+            st.warning(debate_result.get("bear_case", "N/A"))
+        
+        if debate_result.get("synthesis"):
+            st.markdown("**⚖️ Synthesis**")
+            st.markdown(debate_result["synthesis"])
+        
+        if debate_result.get("idea_was_pivoted"):
+            st.success(f"**💡 Debate-Refined Idea:** {debate_result.get('final_idea', 'N/A')}")
+    
+    # Show full transcript in a sub-expander
+    if debate_transcript:
+        with st.expander("📜 Full Debate Transcript", expanded=False):
+            for msg in debate_transcript:
+                speaker = msg.get("speaker", "Unknown")
+                content = msg.get("content", "")
+                
+                icons = {"Bull": "🐂", "Bear": "🐻", "Synthesizer": "⚖️"}
+                icon = icons.get(speaker, "💬")
+                
+                st.markdown(f"**{icon} {speaker}:**")
+                st.markdown(content)
+                st.markdown("---")
+
+
 def render_status_badge(status: str) -> str:
     """Return a colored status badge"""
     colors = {
         "pending": "🟡",
         "running": "🔵",
+        "validating": "🛡️",
+        "validated": "✅",
+        "invalid_input": "⚠️",
+        "researching": "🔍",
+        "debating": "⚔️",
+        "writing": "✍️",
         "completed": "🟢",
         "failed": "🔴",
     }
-    return f"{colors.get(status, '⚪')} {status.capitalize()}"
+    # Format status for display
+    display_status = status.replace("_", " ").capitalize()
+    return f"{colors.get(status, '⚪')} {display_status}"
 
 
 def format_timestamp(dt: datetime | None) -> str:

@@ -23,9 +23,14 @@ class Settings(BaseSettings):
     # Database
     neon_database_url: str
     
-    # Pivoting Configuration
+    # Debate Mode (replaces pivot loop)
+    enable_debate_mode: bool = True
+    debate_max_rounds: int = 6
+    pass_threshold: int = 5  # Score needed to pass (1-10)
+    
+    # Legacy pivot settings (only used if debate_mode=False)
     max_pivot_attempts: int = 3
-    pivot_threshold: int = 5
+    pivot_threshold: int = 5  # Alias for pass_threshold
     
     # Agent Timeouts
     agent_timeout: int = 60

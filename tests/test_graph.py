@@ -10,8 +10,17 @@ from src.graph.state import (
     MarketResearchResult,
     CompetitorAnalysisResult,
     DevilsAdvocateFeedback,
+    InputValidationResult,
+    DebateMessage,
+    DebateResult,
 )
-from src.graph.edges import should_pivot_or_proceed, apply_pivot
+from src.graph.edges import (
+    should_pivot_or_proceed,
+    apply_pivot,
+    should_proceed_after_validation,
+    should_proceed_after_debate,
+    handle_invalid_input,
+)
 
 
 class TestAgentState:
@@ -187,3 +196,180 @@ class TestPydanticModels:
             reason="Test",
         )
         assert result.score == 8
+
+
+class TestInputValidation:
+    """Tests for input validation functionality"""
+    
+    def test_input_validation_result_valid(self):
+        """Test InputValidationResult for valid input"""
+        result = InputValidationResult(
+            is_valid=True,
+            rejection_reason=None,
+            suggested_reframe="AI-powered legal assistant for small businesses",
+        )
+        assert result.is_valid is True
+        assert result.rejection_reason is None
+        assert result.suggested_reframe is not None
+    
+    def test_input_validation_result_invalid(self):
+        """Test InputValidationResult for invalid input"""
+        result = InputValidationResult(
+            is_valid=False,
+            rejection_reason="Input appears to be random text without business context",
+            suggested_reframe=None,
+        )
+        assert result.is_valid is False
+        assert result.rejection_reason is not None
+    
+    def test_should_proceed_after_validation_valid(self):
+        """Test that valid input proceeds to research"""
+        state: AgentState = {
+            "input_validation": {
+                "is_valid": True,
+                "rejection_reason": None,
+            }
+        }
+        
+        result = should_proceed_after_validation(state)
+        assert result == "valid"
+    
+    def test_should_proceed_after_validation_invalid(self):
+        """Test that invalid input rejects"""
+        state: AgentState = {
+            "input_validation": {
+                "is_valid": False,
+                "rejection_reason": "Not a business idea",
+            }
+        }
+        
+        result = should_proceed_after_validation(state)
+        assert result == "invalid"
+    
+    def test_should_proceed_after_validation_missing(self):
+        """Test that missing validation defaults to valid (proceed)"""
+        state: AgentState = {}
+        
+        result = should_proceed_after_validation(state)
+        assert result == "valid"
+    
+    def test_handle_invalid_input(self):
+        """Test handle_invalid_input updates state correctly"""
+        state: AgentState = {
+            "input_validation": {
+                "is_valid": False,
+                "rejection_reason": "Input is gibberish",
+            }
+        }
+        
+        result = handle_invalid_input(state)
+        
+        assert result["status"] == "failed"
+        assert "gibberish" in result["error"].lower()
+
+
+class TestDebateFunctionality:
+    """Tests for the debate panel functionality"""
+    
+    def test_debate_message_model(self):
+        """Test DebateMessage model"""
+        msg = DebateMessage(
+            speaker="Bull",
+            content="This is a compelling opportunity because...",
+            timestamp="2024-01-01T00:00:00Z",
+        )
+        assert msg.speaker == "Bull"
+        assert msg.timestamp == "2024-01-01T00:00:00Z"
+    
+    def test_debate_result_model_no_pivot(self):
+        """Test DebateResult when no pivot is suggested"""
+        result = DebateResult(
+            score=7,
+            verdict="conditional_invest",
+            debate_transcript=[
+                {"speaker": "Bull", "content": "Strong market", "timestamp": ""},
+                {"speaker": "Bear", "content": "High competition", "timestamp": ""},
+            ],
+            bull_case="Large TAM with growing demand",
+            bear_case="Crowded market with established players",
+            synthesis="Proceed with differentiation focus",
+            idea_was_pivoted=False,
+            final_idea="AI-powered legal assistant",
+        )
+        assert result.idea_was_pivoted is False
+        assert len(result.debate_transcript) == 2
+        assert result.score == 7
+    
+    def test_debate_result_model_with_pivot(self):
+        """Test DebateResult when pivot is suggested"""
+        result = DebateResult(
+            score=6,
+            verdict="conditional_invest",
+            debate_transcript=[],
+            bull_case="Potential in niche",
+            bear_case="Generic approach fails",
+            synthesis="Pivot to vertical",
+            idea_was_pivoted=True,
+            final_idea="Legal assistant for immigration lawyers",
+        )
+        assert result.idea_was_pivoted is True
+        assert "immigration" in result.final_idea.lower()
+    
+    @patch("src.graph.edges.get_settings")
+    def test_should_proceed_after_debate_success(self, mock_settings):
+        """Test proceeding after successful debate with high score"""
+        mock_settings.return_value.pass_threshold = 5
+        
+        state: AgentState = {
+            "debate_result": {
+                "score": 7,  # Above threshold
+                "idea_was_pivoted": False,
+                "final_idea": "Original idea",
+            }
+        }
+        
+        result = should_proceed_after_debate(state)
+        assert result == "write_success"
+    
+    @patch("src.graph.edges.get_settings")
+    def test_should_proceed_after_debate_failure(self, mock_settings):
+        """Test write_failure when debate score is too low"""
+        mock_settings.return_value.pass_threshold = 5
+        
+        state: AgentState = {
+            "debate_result": {
+                "score": 4,  # Below threshold
+                "idea_was_pivoted": True,
+                "final_idea": "Pivoted idea for vertical market",
+            }
+        }
+        
+        result = should_proceed_after_debate(state)
+        assert result == "write_failure"
+    
+    @patch("src.graph.edges.get_settings")
+    def test_should_proceed_after_debate_missing(self, mock_settings):
+        """Test fallback when debate result is missing"""
+        mock_settings.return_value.pass_threshold = 5
+        
+        state: AgentState = {}
+        
+        result = should_proceed_after_debate(state)
+        # No debate result means score=0 which is below threshold
+        assert result == "write_failure"
+
+
+class TestInitialStateEnhancements:
+    """Tests for enhanced initial state"""
+    
+    def test_create_initial_state_has_validation_fields(self):
+        """Test that initial state includes new validation/debate fields"""
+        state = create_initial_state(
+            job_id="job-123",
+            session_id="session-456",
+            idea="Test idea",
+        )
+        
+        # Should have input_validation and debate_result as None initially
+        assert state.get("input_validation") is None
+        assert state.get("debate_result") is None

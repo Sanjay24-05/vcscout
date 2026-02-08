@@ -1,31 +1,67 @@
 # VC Scout 🔍
 
-**Autonomous Market Validator with Strategic Pivoting**
+**Autonomous Market Validator with Multi-Agent Debate Analysis**
 
-A multi-agent system that takes a startup idea, performs deep market research, analyzes competitors, and provides a data-backed investment verdict. The key innovation is **autonomous pivoting** — if an idea is rejected, the system proposes and researches strategic pivots before giving up.
+A multi-agent system that takes a startup idea, validates the input, performs deep market research, analyzes competitors, and runs a **Bull vs Bear debate** to provide a balanced, data-backed investment verdict. Features input validation to save API costs on invalid inputs.
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue)
 ![LangGraph](https://img.shields.io/badge/LangGraph-0.2+-green)
 ![Groq](https://img.shields.io/badge/LLM-Groq%20Llama%203.3-orange)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
+---
+
+## 📑 Table of Contents
+
+- [Key Features](#-key-features)
+- [Screenshots](#-screenshots)
+- [Tech Stack](#️-tech-stack)
+- [Quick Start](#-quick-start)
+- [Architecture](#-architecture)
+- [Example Output](#-example-output)
+- [Configuration](#️-configuration)
+- [Project Structure](#-project-structure)
+- [Testing](#-testing)
+- [Problems Faced & Solutions](#-problems-faced--solutions)
+- [Future Enhancements](#-future-enhancements)
+- [Contributing](#-contributing)
+- [License](#-license)
+- [Acknowledgments](#-acknowledgments)
+
+---
+
 ## ✨ Key Features
 
-- **🔄 Autonomous Pivoting Logic**: If the initial idea is rejected (score ≤5), the system proposes a viable pivot and re-starts research autonomously
-- **🔁 Loop-Limited Cyclic Graph**: Uses LangGraph to manage stateful loops with a configurable `MAX_PIVOT_ATTEMPTS` to prevent infinite loops
+- **🛡️ Input Validation Gate**: Rejects gibberish, off-topic, or overly vague inputs early to save API costs
+- **⚔️ Bull vs Bear Debate**: Multi-agent debate panel (Bull, Bear, Synthesizer) provides balanced analysis instead of single-pass evaluation
+- **💡 Collaborative Pivoting**: Debate can suggest refined pivots based on market realities — single pass, no loops
 - **📊 Two Report Types**:
   - **Investment Memo** 🟢 — For ideas that pass validation
   - **Market Reality Report** 🔴 — Constructive analysis explaining why the market is challenging
 - **💾 Persistent State**: Uses Neon Postgres to save research history for async workflows
-- **🧠 Transparent AI Reasoning**: "Thought Trace" shows exact pivot moments and reasoning
+- **🧠 Transparent AI Reasoning**: "Thought Trace" shows debate transcript and decision reasoning
 - **⚡ Rate-Limited API Calls**: Built-in rate limiting to respect API quotas
-- **🛡️ Robust Error Handling**: Graceful fallbacks for LLM parsing errors
+- **🔄 Legacy Pivot Mode**: Optional autonomous pivoting loop (configurable via `ENABLE_DEBATE_MODE`)
+
+## 📸 Screenshots
+
+> **📷 Screenshot placeholders** — Replace with actual screenshots after deployment
+
+| Screenshot | Description |
+|------------|-------------|
+| `[SCREENSHOT: Main Interface]` | Streamlit UI with idea input form and "How it Works" section |
+| `[SCREENSHOT: Analysis Progress]` | Status indicators showing 🛡️ Validating → 🔍 Researching → ⚔️ Debating |
+| `[SCREENSHOT: Debate Transcript]` | Expanded view of Bull 🐂 vs Bear 🐻 debate with Synthesizer ⚖️ conclusion |
+| `[SCREENSHOT: Investment Memo]` | Sample successful report with market analysis and recommendation |
+| `[SCREENSHOT: Market Reality Report]` | Sample rejection report explaining market challenges |
+| `[SCREENSHOT: Thought Trace]` | Execution timeline with node durations and debate transcript |
 
 ## 🛠️ Tech Stack
 
 | Component | Technology | Purpose |
 |-----------|------------|---------|
 | Orchestration | **LangGraph** | Cyclic state machine with conditional logic |
+| Multi-Agent | **pyautogen** | Agent conversation framework for debate simulation |
 | LLM | **Groq (Llama 3.3 70B)** | Fast inference, generous free tier (30 RPM) |
 | Database | **Neon Postgres** | Serverless, persistent state with connection pooling |
 | Search | **DuckDuckGo** | Free web search API |
@@ -34,6 +70,24 @@ A multi-agent system that takes a startup idea, performs deep market research, a
 | Validation | **Pydantic 2** | Structured LLM outputs with validators |
 
 > **Note**: Originally built with Gemini 1.5 Flash, but switched to Groq due to rate limiting issues with Gemini's free tier (15 RPM vs Groq's 30 RPM).
+
+### AutoGen Integration
+
+The debate panel uses **pyautogen** (Microsoft's multi-agent framework) configured with Groq as the LLM backend:
+
+```python
+# src/llm/autogen_config.py
+config_list = [{
+    "model": "llama-3.3-70b-versatile",
+    "api_key": settings.groq_api_key,
+    "base_url": "https://api.groq.com/openai/v1",
+}]
+```
+
+Three agents participate in the debate:
+- **Bull Agent** 🐂 — Argues the investment thesis, highlights opportunities
+- **Bear Agent** 🐻 — Plays devil's advocate, identifies risks and challenges  
+- **Synthesizer Agent** ⚖️ — Moderates debate, produces balanced conclusion with potential pivot
 
 ## 🚀 Quick Start
 
@@ -88,6 +142,26 @@ Open http://localhost:8501 in your browser.
 
 ## 📐 Architecture
 
+### Debate Mode (Default)
+
+```
+                    ┌─────────────────────────────────────────────────────┐
+                    │              LangGraph Orchestrator                  │
+                    │                                                      │
+START ──► Input_Validator ──►[valid?]──► Market_Researcher ──► Competitor_Analyst
+                              │                                      │
+                              │                                      ▼
+                        [invalid]                            Debate_Panel (⚔️)
+                              │                              Bull │ Bear │ Synth
+                              ▼                                      │
+                        handle_invalid                               ▼
+                              │                                   Writer ──► END
+                              ▼
+                             END
+```
+
+### Legacy Pivot Mode (Optional)
+
 ```
                     ┌─────────────────────────────────────────┐
                     │         LangGraph Orchestrator          │
@@ -107,13 +181,31 @@ START ──► Market_Researcher ──► Competitor_Analyst ──► Devils_
 
 | Agent | Role | Output |
 |-------|------|--------|
-| **Market Researcher** | Analyzes TAM, SAM, SOM, growth trends, market maturity | `MarketResearchResult` |
-| **Competitor Analyst** | Identifies competitors, saturation level, barriers to entry | `CompetitorAnalysisResult` |
-| **Devil's Advocate** | Scores viability (1-10), identifies risks, suggests pivots | `DevilsAdvocateFeedback` |
-| **Writer** | Generates Investment Memo or Market Reality Report | Markdown report |
+| **Input Validator** 🛡️ | Validates input is a real startup idea (rejects gibberish/off-topic) | `InputValidationResult` |
+| **Market Researcher** 🔍 | Analyzes TAM, SAM, SOM, growth trends, market maturity | `MarketResearchResult` |
+| **Competitor Analyst** 📊 | Identifies competitors, saturation level, barriers to entry | `CompetitorAnalysisResult` |
+| **Debate Panel** ⚔️ | Bull argues investment thesis, Bear argues risks, Synthesizer concludes | `DebateResult` |
+| **Devil's Advocate** 😈 | (Legacy mode) Scores viability (1-10), identifies risks, suggests pivots | `DevilsAdvocateFeedback` |
+| **Writer** ✍️ | Generates Investment Memo or Market Reality Report | Markdown report |
 
 ### Conditional Edge Logic
 
+**Debate Mode:**
+```python
+# After Input Validation
+if is_valid:
+    return "valid"      # → Proceed to research
+else:
+    return "invalid"    # → Handle rejection, end
+
+# After Debate Panel
+if score > PASS_THRESHOLD:
+    return "write_success"      # → Investment Memo
+else:
+    return "write_failure"      # → Market Reality Report
+```
+
+**Legacy Pivot Mode:**
 ```python
 if score > PIVOT_THRESHOLD:
     return "write_success"      # → Investment Memo
@@ -125,7 +217,36 @@ else:
 
 ## 📊 Example Output
 
-### Successful Pivot Flow
+### Debate Mode Flow
+
+```
+Input: "AI-powered legal assistant for small businesses"
+
+🛡️ Input Validation: ✅ Valid startup idea
+
+🔍 Market Research: $50B TAM, 12% CAGR
+📊 Competitor Analysis: 15 competitors, medium saturation
+
+⚔️ Debate Panel (5 rounds):
+├── 🐂 Bull: "Large underserved SMB market, AI adoption accelerating..."
+├── 🐻 Bear: "Crowded space with LegalZoom, Rocket Lawyer, compliance risks..."
+└── ⚖️ Synthesizer: "Viable with vertical focus. Suggest: immigration law niche."
+
+Final Score: 7/10 ✅
+└── Result: Investment Memo generated with debate insights
+```
+
+### Input Validation Rejection
+
+```
+Input: "asdfghjkl qwerty"
+
+🛡️ Input Validation: ❌ Rejected
+└── Reason: "Input appears to be random text without business context"
+└── No API calls wasted on research!
+```
+
+### Legacy Pivot Flow
 
 ```
 Input: "A to-do app"
@@ -141,7 +262,7 @@ Pivot #1 (Score: 6/10) ✅
 
 ### Generated Reports
 
-- **🟢 Investment Memo**: Executive summary, market opportunity, competitive advantage, risks & mitigations, investment recommendation
+- **🟢 Investment Memo**: Executive summary, market opportunity, competitive advantage, debate highlights (bull/bear cases), risks & mitigations, investment recommendation
 - **🔴 Market Reality Report**: Why the market is challenging, lessons learned, alternative directions
 
 ## ⚙️ Configuration
@@ -151,11 +272,14 @@ Pivot #1 (Score: 6/10) ✅
 | `GROQ_API_KEY` | - | Groq API key (required) |
 | `NEON_DATABASE_URL` | - | Postgres connection string (required) |
 | `LLM_MODEL` | `llama-3.3-70b-versatile` | Model: llama-3.3-70b, qwen-qwq-32b, mixtral-8x7b |
-| `MAX_PIVOT_ATTEMPTS` | 3 | Maximum pivots before Market Reality Report |
-| `PIVOT_THRESHOLD` | 5 | Score threshold for triggering pivots |
-| `AGENT_TIMEOUT` | 60 | Timeout per agent in seconds |
-| `SEARCH_NUM_RESULTS` | 10 | DuckDuckGo results per query |
-| `MAX_COMPETITORS_TO_SCRAPE` | 5 | Max competitor sites to scrape |
+| `ENABLE_DEBATE_MODE` | `true` | Use debate panel instead of pivot loop |
+| `DEBATE_MAX_ROUNDS` | `6` | Number of debate rounds (Bull → Bear → Bull → ...) |
+| `PASS_THRESHOLD` | `5` | Score threshold for Investment Memo (debate mode) |
+| `MAX_PIVOT_ATTEMPTS` | `3` | Maximum pivots before Market Reality Report (legacy) |
+| `PIVOT_THRESHOLD` | `5` | Score threshold for triggering pivots (legacy) |
+| `AGENT_TIMEOUT` | `60` | Timeout per agent in seconds |
+| `SEARCH_NUM_RESULTS` | `10` | DuckDuckGo results per query |
+| `MAX_COMPETITORS_TO_SCRAPE` | `5` | Max competitor sites to scrape |
 
 ## 📁 Project Structure
 
@@ -164,18 +288,22 @@ vcscout/
 ├── app.py                     # Streamlit entry point
 ├── requirements.txt           # Dependencies
 ├── .env.example               # Environment template
+├── docs/
+│   └── screenshots/           # Screenshot placeholders
 ├── src/
 │   ├── config.py              # Pydantic settings
 │   ├── runner.py              # Job execution logic
 │   ├── graph/
 │   │   ├── state.py           # AgentState TypedDict + Pydantic models
 │   │   ├── nodes.py           # Node wrappers with persistence
-│   │   ├── edges.py           # Conditional edge logic
-│   │   └── builder.py         # LangGraph compilation
+│   │   ├── edges.py           # Conditional edge logic (validation, debate, pivot)
+│   │   └── builder.py         # LangGraph compilation (debate + legacy modes)
 │   ├── agents/
+│   │   ├── input_validator.py # 🛡️ Input validation gate
+│   │   ├── debate_panel.py    # ⚔️ Bull vs Bear vs Synthesizer debate
 │   │   ├── market_researcher.py
 │   │   ├── competitor_analyst.py
-│   │   ├── devils_advocate.py
+│   │   ├── devils_advocate.py # Legacy pivot mode
 │   │   └── writer.py
 │   ├── tools/
 │   │   ├── search.py          # DuckDuckGo wrapper
@@ -186,12 +314,13 @@ vcscout/
 │   │   └── repository.py      # CRUD operations
 │   ├── llm/
 │   │   ├── gemini.py          # Gemini client (legacy)
-│   │   └── groq_client.py     # Groq client (active)
+│   │   ├── groq_client.py     # Groq client (active)
+│   │   └── autogen_config.py  # AutoGen/Groq config (reserved)
 │   └── ui/
-│       └── __init__.py        # Streamlit helpers
+│       └── __init__.py        # Streamlit helpers (status badges, debate transcript)
 └── tests/
     ├── conftest.py            # Test fixtures
-    └── test_graph.py          # Unit tests
+    └── test_graph.py          # Unit tests (23 tests)
 ```
 
 ## 🧪 Testing
@@ -249,6 +378,11 @@ def clamp_score(cls, v):
 **Solution**: Migrated to `datetime.now(timezone.utc)`.
 
 ## 🚀 Future Enhancements
+
+### Completed ✅
+- [x] **Input Validation Gate**: Reject invalid/off-topic inputs before expensive API calls
+- [x] **Multi-Agent Debate Panel**: Bull vs Bear debate for balanced analysis
+- [x] **Collaborative Pivoting**: Single-pass pivot suggestions from debate synthesis
 
 ### Short-term
 - [ ] **Session History View**: Browse and compare past analyses

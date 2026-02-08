@@ -132,6 +132,115 @@ class DevilsAdvocateFeedback(BaseModel):
         return "pivot"
 
 
+class InputValidationResult(BaseModel):
+    """Output from the Input Validator agent"""
+    
+    is_valid: bool = Field(
+        default=True,
+        description="Whether the input is a valid startup idea"
+    )
+    rejection_reason: str | None = Field(
+        default=None,
+        description="If invalid, the reason for rejection"
+    )
+    suggested_reframe: str | None = Field(
+        default=None,
+        description="If valid but vague, a suggested more specific version"
+    )
+
+
+class DebateMessage(BaseModel):
+    """A single message in the debate transcript"""
+    
+    speaker: str = Field(description="Agent name: Bull, Bear, or Synthesizer")
+    content: str = Field(description="The message content")
+    timestamp: str = Field(default="", description="When this was said")
+
+
+class DebateResult(BaseModel):
+    """Output from the Debate Panel - replaces DevilsAdvocateFeedback in debate mode"""
+    
+    # Final verdict
+    score: int = Field(
+        default=5,
+        description="Final consensus score from 1 (reject) to 10 (strong invest)"
+    )
+    verdict: str = Field(
+        default="pivot",
+        description="Final verdict: invest, conditional_invest, or reject"
+    )
+    
+    # The debated/refined idea (may be original or pivoted during debate)
+    final_idea: str = Field(
+        default="",
+        description="The final idea after debate (may include refinements)"
+    )
+    idea_was_pivoted: bool = Field(
+        default=False,
+        description="Whether the debate resulted in a pivot"
+    )
+    
+    # Debate summary
+    bull_case: str = Field(
+        default="",
+        description="Summary of the Bull's arguments for investing"
+    )
+    bear_case: str = Field(
+        default="",
+        description="Summary of the Bear's arguments against"
+    )
+    synthesis: str = Field(
+        default="",
+        description="Synthesizer's balanced conclusion"
+    )
+    
+    # Key insights from debate
+    key_risks: list[str] = Field(
+        default_factory=list,
+        description="Top risks identified during debate"
+    )
+    key_opportunities: list[str] = Field(
+        default_factory=list,
+        description="Top opportunities identified during debate"
+    )
+    recommended_next_steps: list[str] = Field(
+        default_factory=list,
+        description="Actionable recommendations"
+    )
+    
+    # Full transcript for transparency
+    debate_transcript: list[DebateMessage] = Field(
+        default_factory=list,
+        description="Full debate transcript"
+    )
+    
+    @field_validator('score', mode='before')
+    @classmethod
+    def clamp_score(cls, v):
+        """Ensure score is within valid range"""
+        if isinstance(v, str):
+            try:
+                v = int(v)
+            except ValueError:
+                return 5
+        if v is None:
+            return 5
+        return max(1, min(10, int(v)))
+    
+    @field_validator('verdict', mode='before')
+    @classmethod
+    def normalize_verdict(cls, v):
+        """Normalize verdict to valid values"""
+        if v is None:
+            return "conditional_invest"
+        v_lower = str(v).lower().strip()
+        if "strong" in v_lower or ("invest" in v_lower and "conditional" not in v_lower):
+            return "invest"
+        elif "reject" in v_lower or "fail" in v_lower or "no" in v_lower:
+            return "reject"
+        return "conditional_invest"
+
+
 class PivotRecord(BaseModel):
     """Record of a pivot decision"""
     
@@ -178,9 +287,11 @@ class AgentState(TypedDict, total=False):
     pivot_history: Annotated[list[dict[str, Any]], merge_pivot_history]
     
     # Agent results (stored as dicts for JSON serialization)
+    input_validation: dict[str, Any] | None
     market_research: dict[str, Any] | None
     competitor_analysis: dict[str, Any] | None
     devils_advocate_feedback: dict[str, Any] | None
+    debate_result: dict[str, Any] | None
     
     # Final output
     final_report: str | None
@@ -189,9 +300,13 @@ class AgentState(TypedDict, total=False):
     # Execution status
     status: Literal[
         "started",
+        "validating",
+        "validated",
+        "invalid_input",
         "researching",
         "analyzing_competitors",
         "critiquing",
+        "debating",
         "pivoting",
         "writing",
         "completed",
@@ -218,9 +333,11 @@ def create_initial_state(
         current_idea=idea,
         pivot_attempts=0,
         pivot_history=[],
+        input_validation=None,
         market_research=None,
         competitor_analysis=None,
         devils_advocate_feedback=None,
+        debate_result=None,
         final_report=None,
         report_type=None,
         status="started",
