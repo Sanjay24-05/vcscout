@@ -44,9 +44,9 @@ A multi-agent system that takes a startup idea, validates the input, performs de
 - **🔄 Legacy Pivot Mode**: Optional autonomous pivoting loop (configurable via `ENABLE_DEBATE_MODE`)
 
 ## 📸 Screenshots
-
+### Input Validation
 ![Screenshot 1](docs/screenshots/Screenshot%202026-02-08%20151209.png)
-
+### Successful Investment Memo Generation
 ![Screenshot 2](docs/screenshots/Screenshot%202026-02-08%20151241.png)
 
 ![Screenshot 3](docs/screenshots/Screenshot%202026-02-08%20151254.png)
@@ -54,7 +54,7 @@ A multi-agent system that takes a startup idea, validates the input, performs de
 ![Screenshot 4](docs/screenshots/Screenshot%202026-02-08%20151306.png)
 
 ![Screenshot 5](docs/screenshots/Screenshot%202026-02-08%20151315.png)
-
+### Successful Market Analysis Report Generation
 ![Screenshot 6](docs/screenshots/Screenshot%202026-02-08%20151413.png)
 
 ![Screenshot 7](docs/screenshots/Screenshot%202026-02-08%20151423.png)
@@ -64,7 +64,7 @@ A multi-agent system that takes a startup idea, validates the input, performs de
 ![Screenshot 9](docs/screenshots/Screenshot%202026-02-08%20151450.png)
 
 ![Screenshot 10](docs/screenshots/Screenshot%202026-02-08%20151504.png)
-
+### Current Bottleneck Due To Free Tier LLMs
 ![Screenshot 11](docs/screenshots/Screenshot%202026-02-08%20151529.png)
 
 ## 🛠️ Tech Stack
