@@ -427,7 +427,8 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## 🙏 Acknowledgments
 
-- [LangGraph](https://github.com/langchain-ai/langgraph) for the state machine framework
-- [Groq](https://groq.com/) for fast, free LLM inference
-- [Neon](https://neon.tech/) for serverless Postgres
-- [Streamlit](https://streamlit.io/) for the rapid UI development
+- [LangGraph](https://github.com/langchain-ai/langgraph) for the state machine framework  
+- [AutoGen](https://github.com/microsoft/autogen) for multi-agent collaboration and orchestration  
+- [Groq](https://groq.com/) for fast, free LLM inference  
+- [Neon](https://neon.tech/) for serverless Postgres  
+- [Streamlit](https://streamlit.io/) for rapid UI development  
